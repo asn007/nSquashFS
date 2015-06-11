@@ -1,12 +1,103 @@
+/*
+ * Copyright (C) 2015 asn007 aka Andrey Sinitsyn <andrey.sin98@gmail.com>
+ *
+ *  This file (build.gradle) is part of nSquashFS.
+ *
+ *      nSquashFS is free software: you can redistribute it and/or modify
+ *      it under the terms of the GNU General Public License as published by
+ *      the Free Software Foundation, either version 3 of the License, or
+ *      (at your option) any later version.
+ *
+ *      nSquashFS is distributed in the hope that it will be useful,
+ *      but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *      MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ *      GNU General Public License for more details.
+ *
+ *      You should have received a copy of the GNU General Public License
+ *      along with nSquashFS.  If not, see <http://www.gnu.org/licenses/>.
+ */
+
 apply plugin: 'java'
+apply plugin: 'idea'
+apply plugin: 'eclipse'
 
-sourceCompatibility = 1.5
-version = '1.0'
+sourceCompatibility = 1.8
+version = '0.1'
 
-repositories {
-    mavenCentral()
+allprojects {
+
+    repositories {
+        mavenCentral()
+    }
+
+    configurations {
+        includeInJar {
+            description = 'Package dependencies into jar file'
+            transitive = true
+        }
+    }
+
+    task "create-dirs" << {
+        project.sourceSets*.each {
+            it.allSource.srcDirs.each {
+                println "$it" - "${projectDir}${File.separator}";
+                if (!(it.exists()))
+                    it.mkdirs();
+            }
+        }
+    }
+
+    task listDependencies << {
+        configurations.each {
+            Configuration cfg -> println '*** CONFIGURATION ' + cfg.name + ' (' + cfg.description + ')' +'***'
+                cfg.each {
+                    File file -> println file.name
+                }
+        }
+    }
+
+    task wrapper(type: Wrapper) {
+        gradleVersion = '1.12'
+        distributionUrl = 'http://services.gradle.org/distributions/gradle-1.12-all.zip'
+    }
+
+
 }
+
 
 dependencies {
     testCompile group: 'junit', name: 'junit', version: '4.11'
+    compile group: 'com.fernsroth.easyio', name: 'easyio', version: '0.9-beta'
+    //includeInJar group: 'com.eclipsesource.minimal-json', name: 'minimal-json', version: '0.9.2'
+    //includeInJar project(':bifrost')
+    //includeInJar project(':nLogger')
+}
+
+
+
+jar {
+    manifest {
+        attributes 'Manifest-Version':'1.0',
+                'Class-Path': '.'
+    }
+}
+
+jar.doFirst {
+    for (file in configurations.includeInJar) {
+        from file.isDirectory() ? file : zipTree(file)
+    }
+}
+
+sourceSets.main.compileClasspath += configurations.includeInJar
+
+idea {
+    module {
+        scopes.PROVIDED.plus += configurations.includeInJar
+    }
+}
+
+eclipse {
+    classpath {
+        plusConfigurations += configurations.includeInJar
+    }
 }
